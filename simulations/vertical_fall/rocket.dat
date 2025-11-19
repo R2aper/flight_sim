@@ -1,0 +1,22 @@
+[planet]
+mass = 5.9726
+radius = 6378.1
+
+[engine]
+thrust = 176100.0
+consumption = 78.945
+
+[rocket]
+dry_mass = 2542.0
+fuel_mass = 4000.0
+altitude = 2000.0
+
+[pid_weights]
+velocity = 1.0
+altitude = 1.0
+fuel = 0.1
+
+[pid_start_values]
+K_p = 10.0
+K_i = 5.0
+K_d = 1.0
