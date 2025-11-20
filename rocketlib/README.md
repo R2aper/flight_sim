@@ -18,14 +18,14 @@ The library is composed of the following modules:
 The primary header to include in your project is `rocketlib.h`, which provides access to all the library's functionality.
 
 ```c
-#include "rocketlib.h"
+#include <rocketlib.h>
 ```
 
 ## Building
 
 The library is built as a shared object (`librocket.so`) using the [Meson build system](https://mesonbuild.com/).
 
-To build the library, navigate to the `lib` directory and run:
+To build the library run:
 
 ```bash
 meson setup build
@@ -33,3 +33,9 @@ ninja -C build
 ```
 
 This will compile the source files located in `lib/src` and create the shared library in the `lib/build` directory. The compiled library can then be linked against your simulation applications.
+
+Or just install shared library and headers:
+
+```bash
+sudo ninja -C install
+```

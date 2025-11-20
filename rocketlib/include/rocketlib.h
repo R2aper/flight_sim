@@ -9,11 +9,11 @@
 #undef DISPLAY_IMPLEMENTATION
 #endif
 
-#include "PID.h"
-#include "fparser.h"
-#include "logger.h"
-#include "rocket.h"
-#include "utils.h"
+#include "rocketlib/PID.h"
+#include "rocketlib/fparser.h"
+#include "rocketlib/logger.h"
+#include "rocketlib/rocket.h"
+#include "rocketlib/utils.h"
 
 #include <math.h>
 

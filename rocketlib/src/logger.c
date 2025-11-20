@@ -1,9 +1,9 @@
-#include "logger.h"
+#include "rocketlib/logger.h"
 
-#include "PID.h"
+#include "rocketlib/PID.h"
 #define DISPLAY_IMPLEMENTATION
 #define DISPLAY_STRIP_PREFIX
-#include "rocket.h"
+#include "rocketlib/rocket.h"
 #include <stddef.h>
 
 logger_t logger_init(const char *filename) {

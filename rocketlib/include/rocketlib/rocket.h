@@ -10,7 +10,7 @@
  * for calculations related to the simulation
  */
 
-#include "display.h"
+#include "../display.h"
 #include "utils.h"
 
 /// Header for rocket logger file

@@ -1,4 +1,4 @@
-#include "rocket.h"
+#include "rocketlib/rocket.h"
 
 int display_rocket(const void *self) {
   if (!self)
