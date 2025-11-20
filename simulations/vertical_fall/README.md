@@ -8,7 +8,6 @@ A rocket is at the apex of its trajectory, at a known height *h* with zero initi
 
 ## Assumptions
 
--   Gravitational acceleration *g* is constant.
 -   Air resistance is neglected.
 -   The descent is perfectly vertical.
 
@@ -42,27 +41,23 @@ A common target velocity profile for landing is based on the free-fall equation:
 
 ### Building and Running
 
-1.  Navigate to the `problems/vertical_fall` directory.
-
-2.  Set up the build using Meson. You'll need to tell it where to find the `librocket` dependency.
-    ```bash
-    meson setup build -Dlibrocket_path=$(pwd)/../../lib/build
-    ```
-
-3.  Compile the executables:
+1.  Compile the executables:
     ```bash
     ninja -C build
     ```
 
-4.  Run the hoverslam simulation:
+2.  Run the hoverslam/pid simulation:
     ```bash
     ./build/hoverslam --log
+    ./build/pid --log
     ```
-    This will run the simulation and create a `hoverslam_sim.csv` file with the flight data.
+    This will run the simulation and create a `csv` file with the flight data.
 
-5.  (Optional) Visualize the results using the provided Python script. You will need `matplotlib` and `pandas`.
+3.  (Optional) Visualize the results using the provided Python script. You will need `matplotlib` and `pandas`.
     ```bash
     pip install matplotlib pandas
     python3 stats.py hoverslam_sim.csv
+    python3 stats.py pid_sim.c
     ```
-    This will generate a `hoverslam_sim.png` image with plots of the flight data and print a summary to the console.
+
+    This will generate a `.png` image with plots of the flight data and print a summary to the console.
