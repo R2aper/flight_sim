@@ -1,4 +1,4 @@
-#include "rocketlib.h"
+#include <rocketlib.h>
 
 #define UPDATE_ROCKET_STATUS(r) (r)->update_status((r), (vec3_t){0, 0, _M_PI_2_}, calculate_forces)
 
@@ -15,11 +15,13 @@ vec3_t calculate_forces(const rocket_t *r);
 void update_status_rk1(rocket_t *r, vec3_t new_directions,
                        vec3_t (*calculate_forces)(const rocket_t *));
 
-/// @brief Updates the rocket's state over a single time step using the second-order Runge-Kutta method(midpoint method)
+/// @brief Updates the rocket's state over a single time step using the second-order Runge-Kutta
+/// method(midpoint method)
 void update_status_rk2(rocket_t *r, vec3_t new_directions,
                        vec3_t (*calculate_forces)(const rocket_t *));
 
-/// @brief Updates the rocket's state over a single time step using the classic fourth-order Runge-Kutta method
+/// @brief Updates the rocket's state over a single time step using the classic fourth-order
+/// Runge-Kutta method
 void update_status_rk4(rocket_t *r, vec3_t new_directions,
                        vec3_t (*calculate_forces)(const rocket_t *));
 

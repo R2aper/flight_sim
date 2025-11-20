@@ -237,7 +237,7 @@ int main(int argc, char *argv[]) {
   // Parsing 'rocket_file' file
   fparser_t fp = fparser_init(rocket_file);
   if (!fp.file) {
-    fprintln(stderr, "No '%s' file was found!");
+    fprintln(stderr, "No '%s' file was found!", rocket_file);
     return -1;
   }
 
