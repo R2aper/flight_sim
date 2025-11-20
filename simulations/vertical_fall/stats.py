@@ -38,7 +38,7 @@ def plot_data(df, filename):
     
     # 4. Engine Thrust vs. Time
     plt.subplot(3, 3, 4)
-    plt.plot(df['time(s)'], df['thrust_percent()'], 'purple', linewidth=2)
+    plt.plot(df['time(s)'], df['thrust_percent(%)'], 'purple', linewidth=2)
     plt.title('Engine Thrust vs. Time')
     plt.xlabel('Time (s)')
     plt.ylabel('Thrust (%)')
