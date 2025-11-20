@@ -123,6 +123,16 @@ result_t hoverslam_simulation(rocket_t r, double eps, bool print, bool log) {
   return (result_t){r, time_to_burn, it};
 }
 
+void usage() {
+  puts("OPTIONS:\n"
+       "--print\t\t\tPrint simulation\n"
+       "--log\t\t\tLog simulation into cvs file\n"
+       "--rocket <file>\t\tSpecify file with simulation parameters\n"
+       "--dt <number>\t\tChange dt variable(default is 2e-3)\n"
+       "--eps <number>\tChange eps variable(default is 1e-4)\n"
+       "-h\t\t\tPrint this help message");
+}
+
 int main(int argc, char *argv[]) {
   double dt = 0.002, eps = 1e-4;
   bool to_print = false, to_log = false;
@@ -134,7 +144,10 @@ int main(int argc, char *argv[]) {
   // Parsing cmd args
   for (int i = 1; i < argc; i++) {
     char *token = argv[i];
-    if (strcmp(token, "--dt") == 0) {
+    if (strcmp(token, "-h") == 0) {
+      usage();
+      return 0;
+    } else if (strcmp(token, "--dt") == 0) {
       if (!argv[i + 1]) {
         fprintln(stderr, "Expected value after '%s'!", token);
         return -1;
