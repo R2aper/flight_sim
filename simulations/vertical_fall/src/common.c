@@ -20,24 +20,28 @@ vec3_t calculate_forces(const rocket_t *r) {
   return (vec3_t){0, 0, (CURRENT_THRUST(*r) - mass * calculate_g(*r)) / mass};
 }
 
-bool ground_contact_detector(rocket_t *current_state,
-                             const rocket_t *previous_state) {
+event_type_t ground_contact_detector(rocket_t *current_state,
+                                     const rocket_t *previous_state) {
   // Event 1: Ground contact
   if (current_state->coords.z <= 0 && previous_state->coords.z > 0) {
-    return true;
+    return EV_GROUND_CONTACT;
   }
 
   // Event 2: Flying away (unstable behavior)
   if (current_state->velocity.z > 0 && current_state->time > 1.0) {
     current_state->velocity.z = INFINITY; // Mark as failure
-    return true;
+    return EV_UNSTABLE;
   }
 
-  return false;
+  return EV_NONE;
 }
 
-void interpolate_to_ground(rocket_t *current_state,
-                           const rocket_t *previous_state) {
+void hoverslam_event_interpolator(rocket_t *current_state,
+                                  const rocket_t *previous_state,
+                                  event_type_t event) {
+  if (event != EV_GROUND_CONTACT)
+    return; // This interpolator only handles ground contact
+
   // Use linear interpolation to find the exact state at z=0
   // alpha is the fraction of the last time step before hitting the ground
   double alpha = previous_state->coords.z /
@@ -230,7 +234,7 @@ rocket_t start_falling(double dt, double dry_mass, double fuel_mass,
   r.d.sndisplay_fn = sndisplay_rocket;
   r.update_status = update_status_rk4;
   r.event_detector = ground_contact_detector;
-  r.event_interpolator = interpolate_to_ground;
+  r.event_interpolator = hoverslam_event_interpolator;
   r.dt = dt;
   r.time = 0;
   r.velocity = VEC3_ZERO; // Start at top of trajectory

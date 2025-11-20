@@ -16,28 +16,21 @@ typedef struct result_t {
 /// golden_search_hoverslam
 /// @return Velocity at landing/crash
 double velocity_at_landing(rocket_t r, double ignition_time) {
-  while (true) {
-    rocket_t prev_state = r;
+  event_type_t event = EV_NONE;
+  rocket_t prev_state = r;
+  while ((event = r.event_detector(&r, &prev_state)) != EV_GROUND_CONTACT) {
+    prev_state = r;
 
     if (r.time >= ignition_time && r.thrust_percent == 0)
       CHANGE_THRUST(r, 1);
 
     UPDATE_ROCKET_STATUS(&r);
 
-    if (r.event_detector && r.event_detector(&r, &prev_state)) {
-      if (r.event_interpolator) {
-        r.event_interpolator(&r, &prev_state);
-      }
-      break;
-    }
-
-    // Safety break if detector is not set
-    if (!r.event_detector && r.coords.z <= 0)
+    if (event == EV_UNSTABLE || r.coords.z <= 0)
       break;
   }
 
-  if (isinf(r.velocity.z))
-    return INFINITY;
+  r.event_interpolator(&r, &prev_state, event);
 
   return fabs(r.velocity.z);
 }
@@ -91,9 +84,11 @@ result_t hoverslam_simulation(rocket_t r, double eps, bool print, bool log) {
   double time_to_burn = golden_search_hoverslam(r, eps);
 
   int it = 0;
-  while (true) {
+  event_type_t event = EV_NONE;
+  rocket_t prev_state = r;
+  while ((event = r.event_detector(&r, &prev_state)) != EV_GROUND_CONTACT) {
     it++;
-    rocket_t prev_state = r;
+    prev_state = r;
 
     if (r.time >= time_to_burn && r.thrust_percent == 0 && r.fuel_mass > 0)
       CHANGE_THRUST(r, 1);
@@ -105,17 +100,11 @@ result_t hoverslam_simulation(rocket_t r, double eps, bool print, bool log) {
     if (print)
       PRINT_ROCKET(r);
 
-    if (r.event_detector && r.event_detector(&r, &prev_state)) {
-      if (r.event_interpolator) {
-        r.event_interpolator(&r, &prev_state);
-      }
-      break;
-    }
-
-    // Safety break if detector is not set
-    if (!r.event_detector && r.coords.z <= 0)
+    if (event == EV_UNSTABLE || r.coords.z <= 0)
       break;
   }
+
+  r.event_interpolator(&r, &prev_state, event);
 
   if (l.file)
     logger_free(&l);

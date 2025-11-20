@@ -10,6 +10,7 @@
 #endif
 
 #include "rocketlib/PID.h"
+#include "rocketlib/events.h"
 #include "rocketlib/fparser.h"
 #include "rocketlib/logger.h"
 #include "rocketlib/rocket.h"

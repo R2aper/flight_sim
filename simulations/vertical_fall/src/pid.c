@@ -48,8 +48,11 @@ double evaluate_pid_cost(PID *pid, rocket_t r, double weights[3]) {
   pid->prev_err = 0;
   double initial_fuel_mass = r.fuel_mass;
 
-  while (true) {
-    rocket_t prev_state = r;
+  event_type_t event = EV_NONE;
+  rocket_t prev_state = r;
+  while ((event = r.event_detector(&r, &prev_state)) != EV_GROUND_CONTACT) {
+    prev_state = r;
+
     double desired_thrust = pid_calculate_thrust(pid, r);
     if (desired_thrust > 0 && r.fuel_mass > 0)
       CHANGE_THRUST(r, MIN(1, desired_thrust));
@@ -58,21 +61,13 @@ double evaluate_pid_cost(PID *pid, rocket_t r, double weights[3]) {
 
     UPDATE_ROCKET_STATUS(&r);
 
-    if (r.event_detector && r.event_detector(&r, &prev_state)) {
-      if (r.event_interpolator) {
-        r.event_interpolator(&r, &prev_state);
-      }
-      break;
-    }
-
-    if (!r.event_detector && r.coords.z <= 0)
+    if (event == EV_UNSTABLE || r.coords.z <= 0)
       break;
   }
 
-  double fuel_used = initial_fuel_mass - r.fuel_mass;
+  r.event_interpolator(&r, &prev_state, event);
 
-  if (isinf(r.velocity.z))
-    return INFINITY;
+  double fuel_used = initial_fuel_mass - r.fuel_mass;
 
   // Cost is a combination of final velocity, how far from the ground it and how
   // much fuel we used
@@ -153,9 +148,12 @@ result_t pid_landing_simulation(rocket_t r, double tolerance, double weights[3],
   pid.prev_err = 0;
 
   int it = 0;
-  while (true) {
+  event_type_t event = EV_NONE;
+  rocket_t prev_state = r;
+  while ((event = r.event_detector(&r, &prev_state)) != EV_GROUND_CONTACT) {
     it++;
-    rocket_t prev_state = r;
+    prev_state = r;
+
     double desired_thrust = pid_calculate_thrust(&pid, r);
 
     if (desired_thrust > 0 && r.fuel_mass > 0)
@@ -171,16 +169,11 @@ result_t pid_landing_simulation(rocket_t r, double tolerance, double weights[3],
     if (print)
       PRINT_ROCKET(r);
 
-    if (r.event_detector && r.event_detector(&r, &prev_state)) {
-      if (r.event_interpolator)
-        r.event_interpolator(&r, &prev_state);
-
-      break;
-    }
-
-    if (!r.event_detector && r.coords.z <= 0)
+    if (event == EV_UNSTABLE || r.coords.z <= 0)
       break;
   }
+
+  r.event_interpolator(&r, &prev_state, event);
 
   if (l.file)
     logger_free(&l);

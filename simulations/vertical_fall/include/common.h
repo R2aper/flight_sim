@@ -25,12 +25,14 @@ void update_status_rk2(rocket_t *r, vec3_t new_directions,
 void update_status_rk4(rocket_t *r, vec3_t new_directions,
                        vec3_t (*calculate_forces)(const rocket_t *));
 
-/// @brief Event detector for ground contact (z <= 0)
-/// @return Returns true if ground contact occurred, false otherwise
-bool ground_contact_detector(rocket_t *current_state, const rocket_t *previous_state);
+/// @brief Event detector for ground contact and other simulation events.
+/// @return Returns the type of event detected.
+event_type_t ground_contact_detector(rocket_t *current_state, const rocket_t *previous_state);
 
-/// @brief Interpolates the rocket's state to the exact moment of ground contact
-void interpolate_to_ground(rocket_t *current_state, const rocket_t *previous_state);
+/// @brief Interpolates the rocket's state to the exact moment of a detected
+/// event.
+void hoverslam_event_interpolator(rocket_t *current_state, const rocket_t *previous_state,
+                                  event_type_t event);
 
 /// @brief Initializes the rocket state for a vertical fall scenario
 rocket_t start_falling(double dt, double dry_mass, double fuel_mass, double height, engine_t engine,

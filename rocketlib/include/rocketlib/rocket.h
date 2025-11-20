@@ -11,6 +11,7 @@
  */
 
 #include "../display.h"
+#include "events.h"
 #include "utils.h"
 
 /// Header for rocket logger file
@@ -35,7 +36,6 @@ typedef struct planet_t {
 
 } planet_t;
 
-// #define calculate_g(r) 9.8
 #define calculate_g(r) G *((r).pl.mass * 1e24 / pow((r).pl.radius * 1e3 + (r).coords.z, 2))
 
 typedef struct engine_t {
@@ -64,13 +64,15 @@ typedef struct rocket_t {
   void (*update_status)(struct rocket_t *, vec3_t new_directions,
                         vec3_t (*calculate_forces)(const struct rocket_t *));
 
-  /// @brief Optional: Detects if a simulation event has occurred
-  /// @return `true` if an event was detected, `false` otherwise
-  bool (*event_detector)(struct rocket_t *current_state, const struct rocket_t *previous_state);
+  /// @brief Optional: Detects if a simulation event has occurred.
+  /// @return The type of event detected (`event_type_t`)
+  event_type_t (*event_detector)(struct rocket_t *current_state,
+                                 const struct rocket_t *previous_state);
 
   /// @brief Optional: Interpolates the simulation state to the precise moment
   /// of a detected event
-  void (*event_interpolator)(struct rocket_t *current_state, const struct rocket_t *previous_state);
+  void (*event_interpolator)(struct rocket_t *current_state, const struct rocket_t *previous_state,
+                             event_type_t event);
 
 } rocket_t;
 
