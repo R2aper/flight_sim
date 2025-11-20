@@ -20,6 +20,9 @@
 #define _M_SQRT2_ 1.41421356237309504880    /* sqrt(2) */
 #define _M_SQRT1_2_ 0.70710678118654752440  /* 1/sqrt(2) */
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 void _sleep_(double msec);
 
 void clrscrn();
@@ -30,5 +33,7 @@ typedef struct vec3_t {
   double x, y, z;
 
 } vec3_t;
+
+#define VEC3_ZERO (vec3_t){0, 0, 0}
 
 #endif // UTILS_H
