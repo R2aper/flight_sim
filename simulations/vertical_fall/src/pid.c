@@ -1,6 +1,7 @@
 #define DISPLAY_IMPLEMENTATION
 #define DISPLAY_STRIP_PREFIX
 #include "common.h"
+#include <rocketlib/PID.h>
 
 #include <assert.h>
 
@@ -17,25 +18,25 @@ typedef struct result_t {
 /// controller will apply thrust to reduce speed when the rocket exceeds this
 /// target velocity
 /// @return Percent of thrust
-double pid_calculate_thrust(PID *pid, rocket_t r) {
+double pid_calculate_thrust(PID *pid, rocket_t *r, double dt) {
   // Target velocity is the velocity a body would have in free fall from the
   // current altitude. This profile means the rocket falls freely until its
   // speed exceeds this value, at which point the engine brakes to maintain the
   // profile
-  double target_velocity = -sqrt(2 * calculate_g(r) * r.coords.z);
-  double err = target_velocity - r.velocity.z;
+  double target_velocity = -sqrt(2 * calculate_g(*r) * r->coords.z);
+  double err = target_velocity - r->velocity.z;
 
   pid->P = pid->K_p * err;
-  pid->integral += err * r.dt;
+  pid->integral += err * dt;
   pid->I = pid->K_i * pid->integral;
-  pid->D = pid->K_d * (err - pid->prev_err) / r.dt;
+  pid->D = pid->K_d * (err - pid->prev_err) / dt;
 
   double thrust = pid->P + pid->I + pid->D;
-  thrust = MAX(0, MIN(thrust, r.engine.thrust));
+  thrust = MAX(0, MIN(thrust, r->engine.thrust));
 
   pid->prev_err = err;
 
-  return (thrust) / r.engine.thrust;
+  return (thrust) / r->engine.thrust;
 }
 
 /// @brief Calculate the cost for the PID tuning algorithm
@@ -43,36 +44,37 @@ double pid_calculate_thrust(PID *pid, rocket_t r) {
 /// landing quality. A lower cost is better. The goal is to have the final
 /// velocity and altitude as close to zero as possible.
 /// @return Cost
-double evaluate_pid_cost(PID *pid, rocket_t r, double weights[3]) {
+double evaluate_pid_cost(PID *pid, simulator_t scene, double weights[3]) {
   pid->integral = 0;
   pid->prev_err = 0;
-  double initial_fuel_mass = r.fuel_mass;
+  rocket_t *r = (rocket_t *)scene.object;
+  double initial_fuel_mass = r->fuel_mass;
 
   event_type_t event = EV_NONE;
-  rocket_t prev_state = r;
-  while ((event = r.event_detector(&r, &prev_state)) != EV_GROUND_CONTACT) {
-    prev_state = r;
+  rocket_t prev_state;
+  while (event != EV_GROUND_CONTACT) {
+    prev_state = *r;
 
-    double desired_thrust = pid_calculate_thrust(pid, r);
-    if (desired_thrust > 0 && r.fuel_mass > 0)
-      CHANGE_THRUST(r, MIN(1, desired_thrust));
+    double desired_thrust = pid_calculate_thrust(pid, r, scene.dt);
+    if (desired_thrust > 0 && r->fuel_mass > 0)
+      CHANGE_THRUST(*r, MIN(1, desired_thrust));
     else
-      CHANGE_THRUST(r, 0);
+      CHANGE_THRUST(*r, 0);
 
-    UPDATE_ROCKET_STATUS(&r);
+    scene.take_step(&scene);
+    event = scene.event_detector(&scene, &prev_state);
 
-    if (event == EV_UNSTABLE || r.coords.z <= 0)
+    if (event == EV_UNSTABLE || r->coords.z <= 0)
       break;
   }
 
-  r.event_interpolator(&r, &prev_state, event);
+  scene.event_interpolator(&scene, &prev_state, event);
 
-  double fuel_used = initial_fuel_mass - r.fuel_mass;
+  double fuel_used = initial_fuel_mass - r->fuel_mass;
 
   // Cost is a combination of final velocity, how far from the ground it and how
   // much fuel we used
-  return weights[0] * fabs(r.velocity.z) + weights[1] * fabs(r.coords.z) +
-         weights[2] * fuel_used;
+  return weights[0] * fabs(r->velocity.z) + weights[1] * fabs(r->coords.z) + weights[2] * fuel_used;
 }
 
 /// @brief An implementation of the Twiddle algorithm for auto-tuning PID
@@ -80,15 +82,20 @@ double evaluate_pid_cost(PID *pid, rocket_t r, double weights[3]) {
 /// It systematically adjusts the Kp, Ki, and Kd values to minimize the cost
 /// returned by evaluate_pid_cost
 /// @return Optimized PID
-PID tune_pid_twiddle(rocket_t r, double tolerance, double weights[3],
-                     double dp[3]) {
+PID tune_pid_twiddle(simulator_t scene, double tolerance, double weights[3], double dp[3]) {
   PID pid = {0};
   pid.d.display_fn = display_pid;
   pid.d.self = &pid;
 
   double p[] = {pid.K_p, pid.K_i, pid.K_d};
 
-  double best_err = evaluate_pid_cost(&pid, r, weights);
+  rocket_t initial_rocket_state = *(rocket_t *)scene.object;
+  double initial_scene_time = scene.time;
+
+  double best_err = evaluate_pid_cost(&pid, scene, weights);
+
+  *(rocket_t *)scene.object = initial_rocket_state;
+  scene.time = initial_scene_time;
 
   while ((dp[0] + dp[1] + dp[2]) > tolerance) {
     for (int i = 0; i < 3; i++) {
@@ -96,7 +103,10 @@ PID tune_pid_twiddle(rocket_t r, double tolerance, double weights[3],
       pid.K_p = p[0];
       pid.K_i = p[1];
       pid.K_d = p[2];
-      double err = evaluate_pid_cost(&pid, r, weights);
+      double err = evaluate_pid_cost(&pid, scene, weights);
+
+      *(rocket_t *)scene.object = initial_rocket_state;
+      scene.time = initial_scene_time;
 
       if (err < best_err) {
         best_err = err;
@@ -106,7 +116,10 @@ PID tune_pid_twiddle(rocket_t r, double tolerance, double weights[3],
         pid.K_p = p[0];
         pid.K_i = p[1];
         pid.K_d = p[2];
-        err = evaluate_pid_cost(&pid, r, weights);
+        err = evaluate_pid_cost(&pid, scene, weights);
+
+        *(rocket_t *)scene.object = initial_rocket_state;
+        scene.time = initial_scene_time;
 
         if (err < best_err) {
           best_err = err;
@@ -134,51 +147,54 @@ PID tune_pid_twiddle(rocket_t r, double tolerance, double weights[3],
 /// @param log Log simulation data to a file?
 /// @return The struct of tuned PID controller, rocket stats after land and
 /// number of iterations during simulation
-result_t pid_landing_simulation(rocket_t r, double tolerance, double weights[3],
+result_t pid_landing_simulation(simulator_t *scene, double tolerance, double weights[3],
                                 double dp[3], bool print, bool log) {
   logger_t l = (logger_t){NULL, NULL};
   if (log) {
-    l = logger_init("pid_flight_sim.cvs");
+    l = logger_init("pid_flight_sim.csv");
     assert(l.file);
     fprintln(l.file, ROCKET_LOG_HEADER);
   }
 
-  PID pid = tune_pid_twiddle(r, tolerance, weights, dp);
+  PID pid = tune_pid_twiddle(*scene, tolerance, weights, dp);
   pid.integral = 0;
   pid.prev_err = 0;
 
+  rocket_t *r = (rocket_t *)scene->object;
+
   int it = 0;
   event_type_t event = EV_NONE;
-  rocket_t prev_state = r;
-  while ((event = r.event_detector(&r, &prev_state)) != EV_GROUND_CONTACT) {
+  rocket_t prev_state;
+  while (event != EV_GROUND_CONTACT) {
     it++;
-    prev_state = r;
+    prev_state = *r;
 
-    double desired_thrust = pid_calculate_thrust(&pid, r);
+    double desired_thrust = pid_calculate_thrust(&pid, r, scene->dt);
 
-    if (desired_thrust > 0 && r.fuel_mass > 0)
-      CHANGE_THRUST(r, MIN(1, desired_thrust));
+    if (desired_thrust > 0 && r->fuel_mass > 0)
+      CHANGE_THRUST(*r, MIN(1, desired_thrust));
     else
-      CHANGE_THRUST(r, 0);
+      CHANGE_THRUST(*r, 0);
 
-    UPDATE_ROCKET_STATUS(&r);
+    scene->take_step(scene);
+    event = scene->event_detector(scene, &prev_state);
 
-    if (log && is_almost_integer(r.time, 0.01))
-      logger_write_rocket(&l, &r);
+    if (log && is_almost_integer(r->time, 0.01))
+      logger_write_rocket(&l, r);
 
     if (print)
-      PRINT_ROCKET(r);
+      PRINT_ROCKET(*r);
 
-    if (event == EV_UNSTABLE || r.coords.z <= 0)
+    if (event == EV_UNSTABLE || r->coords.z <= 0)
       break;
   }
 
-  r.event_interpolator(&r, &prev_state, event);
+  scene->event_interpolator(scene, &prev_state, event);
 
   if (l.file)
     logger_free(&l);
 
-  return (result_t){r, pid, it};
+  return (result_t){*r, pid, it};
 }
 
 void usage() {
@@ -196,6 +212,7 @@ int main(int argc, char *argv[]) {
   double dp[3], weights[3];
   bool to_print = false, to_log = false;
   double fuel_mass = 0.0, dry_mass = 0.0, altitude = 0.0;
+  simulator_t scene = {0};
   engine_t eng = {0};
   planet_t pl = {0};
   char *rocket_file = "rocket.dat";
@@ -248,6 +265,7 @@ int main(int argc, char *argv[]) {
   }
 
   fparser_parse(&fp);
+  fparser_free(&fp);
 
   pl.mass = fparser_get_var(&fp, "planet", "mass").value;
   pl.radius = fparser_get_var(&fp, "planet", "radius").value;
@@ -285,21 +303,32 @@ int main(int argc, char *argv[]) {
             dp[0], dp[1], dp[2]);
   }
 
-  rocket_t r = start_falling(dt, dry_mass, fuel_mass, altitude, eng, pl);
-  r.d.self = &r;
-  if (!is_enough_deltav(&r)) {
-    println("Available delta-v: %.2f\nNot enough for landing!", deltav(&r));
+  rocket_t *r = start_falling(dry_mass, fuel_mass, altitude, eng, pl);
+  assert(r);
+  r->d.self = r;
+
+  if (!is_enough_deltav(r)) {
+    println("Available delta-v: %.2f\nNot enough for landing!", deltav(r));
+    rocket_free(r);
     return -1;
   }
 
-  result_t result =
-      pid_landing_simulation(r, tolerance, weights, dp, to_print, to_log);
+  scene.dt = dt;
+  scene.integrator = update_status_rk4;
+  scene.event_detector = ground_contact_detector;
+  scene.event_interpolator = hoverslam_event_interpolator;
+  scene.object = r;
+  scene.take_step = take_step;
+
+  result_t result = pid_landing_simulation(&scene, tolerance, weights, dp, to_print, to_log);
 
   result.r.d.self = &result.r;
   result.pid.d.self = &result.pid;
   println("Rocket stats after land:\n{}\nTuned PID:\n{}\nTotal "
           "iterations during simulation:%d",
           &result.r, &result.pid, result.it);
+
+  rocket_free(r);
 
   return 0;
 }

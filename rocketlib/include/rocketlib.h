@@ -14,6 +14,7 @@
 #include "rocketlib/fparser.h"
 #include "rocketlib/logger.h"
 #include "rocketlib/rocket.h"
+#include "rocketlib/simulator.h"
 #include "rocketlib/utils.h"
 
 #include <math.h>

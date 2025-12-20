@@ -10,4 +10,4 @@ m_dep = cc.find_library('m', required: true)
 
 shared_library('rocket',src,include_directories: include,dependencies: [m_dep], install: true)
 install_headers('include/display.h','include/rocketlib.h')
-install_headers('include/rocketlib/logger.h', 'include/rocketlib/PID.h','include/rocketlib/rocket.h','include/rocketlib/utils.h', 'include/rocketlib/fparser.h', 'include/rocketlib/events.h', subdir: 'rocketlib')
+install_headers('include/rocketlib/logger.h', 'include/rocketlib/PID.h','include/rocketlib/rocket.h','include/rocketlib/utils.h', 'include/rocketlib/fparser.h', 'include/rocketlib/events.h','include/rocketlib/simulator.h', subdir: 'rocketlib')

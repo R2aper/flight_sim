@@ -11,7 +11,6 @@
  */
 
 #include "../display.h"
-#include "events.h"
 #include "utils.h"
 
 /// Header for rocket logger file
@@ -24,9 +23,9 @@
 
 #define PRINT_ROCKET(r)                                                                            \
   {                                                                                                \
-    r.d.self = &r;                                                                                 \
+    (r).d.self = &(r);                                                                             \
     clrscrn();                                                                                     \
-    println("{}", &r);                                                                             \
+    println("{}", &(r));                                                                           \
     _sleep_(0.01);                                                                                 \
   }
 
@@ -54,25 +53,10 @@ typedef struct rocket_t {
   vec3_t acc;           // m/s^2
   vec3_t coords;        // Coordinates (m)
   vec3_t directions;    // Angles (radians)
-  double dt;            // s (delta time)
-  double time;          // s (simulation time)
+  double time;          // s
   double dry_mass;      // kg (mass without fuel)
   double fuel_mass;     // kg
   float thrust_percent; // Percent (0.0 to 1.0)
-
-  /// @brief Updates the dynamics of the simulation after a time step 'dt'.
-  void (*update_status)(struct rocket_t *, vec3_t new_directions,
-                        vec3_t (*calculate_forces)(const struct rocket_t *));
-
-  /// @brief Optional: Detects if a simulation event has occurred.
-  /// @return The type of event detected (`event_type_t`)
-  event_type_t (*event_detector)(struct rocket_t *current_state,
-                                 const struct rocket_t *previous_state);
-
-  /// @brief Optional: Interpolates the simulation state to the precise moment
-  /// of a detected event
-  void (*event_interpolator)(struct rocket_t *current_state, const struct rocket_t *previous_state,
-                             event_type_t event);
 
 } rocket_t;
 
